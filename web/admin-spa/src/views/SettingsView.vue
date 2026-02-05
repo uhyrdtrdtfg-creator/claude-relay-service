@@ -60,6 +60,18 @@
             <i class="fas fa-balance-scale mr-2"></i>
             服务倍率
           </button>
+          <button
+            :class="[
+              'border-b-2 pb-2 text-sm font-medium transition-colors',
+              activeSection === 'security'
+                ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            ]"
+            @click="activeSection = 'security'"
+          >
+            <i class="fas fa-shield-alt mr-2"></i>
+            安全设置
+          </button>
         </nav>
       </div>
 
@@ -1206,6 +1218,34 @@
             </div>
           </div>
         </div>
+
+        <!-- 安全设置部分 -->
+        <div v-show="activeSection === 'security'">
+          <div class="space-y-6">
+            <!-- 两因素认证 -->
+            <div
+              class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+            >
+              <TwoFactorManage />
+            </div>
+
+            <!-- 说明信息 -->
+            <div
+              class="rounded-lg bg-blue-50 p-4 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+            >
+              <div class="flex">
+                <i class="fas fa-info-circle mr-3 mt-0.5 flex-shrink-0"></i>
+                <div>
+                  <p class="font-medium">关于两步验证</p>
+                  <p class="mt-1 text-blue-600 dark:text-blue-400">
+                    启用两步验证后，每次登录都需要输入验证器应用（如 Google Authenticator、Microsoft
+                    Authenticator）生成的 6 位验证码，可有效防止账户被盗。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1807,6 +1847,7 @@ import { useSettingsStore } from '@/stores/settings'
 
 import * as httpApis from '@/utils/http_apis'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import TwoFactorManage from '@/components/settings/TwoFactorManage.vue'
 
 // 定义组件名称，用于keep-alive排除
 defineOptions({

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import router from '@/router'
 
-import { loginApi, getAuthUserApi, getOemSettingsApi } from '@/utils/http_apis'
+import { loginApi, getAuthUserApi, getOemSettingsApi, verify2FAApi } from '@/utils/http_apis'
 
 export const useAuthStore = defineStore('auth', () => {
   // 状态
@@ -19,6 +19,11 @@ export const useAuthStore = defineStore('auth', () => {
   })
   const oemLoading = ref(true)
 
+  // 2FA 相关状态
+  const requiresTwoFactor = ref(false)
+  const partialToken = ref('')
+  const twoFactorLoading = ref(false)
+
   // 计算属性
   const isAuthenticated = computed(() => !!authToken.value && isLoggedIn.value)
   const token = computed(() => authToken.value)
@@ -28,17 +33,27 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(credentials) {
     loginLoading.value = true
     loginError.value = ''
+    requiresTwoFactor.value = false
+    partialToken.value = ''
 
     try {
       const result = await loginApi(credentials)
 
       if (result.success) {
-        authToken.value = result.token
-        username.value = result.username || credentials.username
-        isLoggedIn.value = true
-        localStorage.setItem('authToken', result.token)
+        // 检查是否需要 2FA
+        if (result.requiresTwoFactor) {
+          requiresTwoFactor.value = true
+          partialToken.value = result.partialToken
+          // 不跳转，等待 2FA 验证
+        } else {
+          // 普通登录成功
+          authToken.value = result.token
+          username.value = result.username || credentials.username
+          isLoggedIn.value = true
+          localStorage.setItem('authToken', result.token)
 
-        await router.push('/dashboard')
+          await router.push('/dashboard')
+        }
       } else {
         loginError.value = result.message || '登录失败'
       }
@@ -47,6 +62,53 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       loginLoading.value = false
     }
+  }
+
+  // 验证 2FA
+  async function verify2FA(code) {
+    twoFactorLoading.value = true
+
+    try {
+      const result = await verify2FAApi({
+        partialToken: partialToken.value,
+        code
+      })
+
+      if (result.success) {
+        // 2FA 验证成功
+        authToken.value = result.token
+        username.value = result.username
+        isLoggedIn.value = true
+        localStorage.setItem('authToken', result.token)
+
+        // 重置 2FA 状态
+        requiresTwoFactor.value = false
+        partialToken.value = ''
+
+        await router.push('/dashboard')
+        return { success: true }
+      } else {
+        return {
+          success: false,
+          message: result.message || '验证码错误',
+          remainingAttempts: result.remainingAttempts
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || '验证失败，请重试'
+      }
+    } finally {
+      twoFactorLoading.value = false
+    }
+  }
+
+  // 取消 2FA 验证，返回登录页
+  function cancel2FA() {
+    requiresTwoFactor.value = false
+    partialToken.value = ''
+    loginError.value = ''
   }
 
   function logout() {
@@ -114,6 +176,11 @@ export const useAuthStore = defineStore('auth', () => {
     oemSettings,
     oemLoading,
 
+    // 2FA 状态
+    requiresTwoFactor,
+    partialToken,
+    twoFactorLoading,
+
     // 计算属性
     isAuthenticated,
     token,
@@ -123,6 +190,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     checkAuth,
-    loadOemSettings
+    loadOemSettings,
+    verify2FA,
+    cancel2FA
   }
 })

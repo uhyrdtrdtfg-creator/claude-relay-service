@@ -21,6 +21,15 @@ export const getAuthUserApi = () => request({ url: '/web/auth/user', method: 'GE
 export const changePasswordApi = (data) =>
   request({ url: '/web/auth/change-password', method: 'POST', data })
 
+// 2FA 两因素认证
+export const get2FAStatusApi = () => request({ url: '/web/auth/2fa/status', method: 'GET' })
+export const setup2FAApi = () => request({ url: '/web/auth/2fa/setup', method: 'POST' })
+export const verifySetup2FAApi = (data) =>
+  request({ url: '/web/auth/2fa/verify-setup', method: 'POST', data })
+export const verify2FAApi = (data) => request({ url: '/web/auth/2fa/verify', method: 'POST', data })
+export const disable2FAApi = (data) =>
+  request({ url: '/web/auth/2fa/disable', method: 'POST', data })
+
 // OEM 设置
 export const getOemSettingsApi = () => request({ url: '/admin/oem-settings', method: 'GET' })
 export const updateOemSettingsApi = (data) =>

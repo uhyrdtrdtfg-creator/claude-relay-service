@@ -8,7 +8,8 @@
     <div
       class="glass-strong w-full max-w-md rounded-xl p-6 shadow-2xl sm:rounded-2xl sm:p-8 md:rounded-3xl md:p-10"
     >
-      <div class="mb-6 text-center sm:mb-8">
+      <!-- Logo 和标题 -->
+      <div v-if="!authStore.requiresTwoFactor" class="mb-6 text-center sm:mb-8">
         <!-- 使用自定义布局来保持登录页面的居中大logo样式 -->
         <div
           class="mx-auto mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-gray-300/30 bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm sm:mb-6 sm:h-20 sm:w-20 sm:rounded-2xl"
@@ -37,7 +38,12 @@
         <p class="text-base text-gray-600 dark:text-gray-400 sm:text-lg">管理后台</p>
       </div>
 
-      <form class="space-y-4 sm:space-y-6" @submit.prevent="handleLogin">
+      <!-- 登录表单 -->
+      <form
+        v-if="!authStore.requiresTwoFactor"
+        class="space-y-4 sm:space-y-6"
+        @submit.prevent="handleLogin"
+      >
         <div>
           <label
             class="mb-2 block text-sm font-semibold text-gray-900 dark:text-gray-100 sm:mb-3"
@@ -85,8 +91,19 @@
         </button>
       </form>
 
+      <!-- 2FA 验证 -->
+      <TwoFactorVerify
+        v-else
+        ref="twoFactorVerifyRef"
+        :error="twoFactorError"
+        :loading="authStore.twoFactorLoading"
+        :remaining-attempts="remainingAttempts"
+        @cancel="handleCancel2FA"
+        @verify="handleVerify2FA"
+      />
+
       <div
-        v-if="authStore.loginError"
+        v-if="authStore.loginError && !authStore.requiresTwoFactor"
         class="mt-4 rounded-lg border border-red-500/30 bg-red-500/20 p-3 text-center text-xs text-red-800 backdrop-blur-sm dark:text-red-400 sm:mt-6 sm:rounded-xl sm:p-4 sm:text-sm"
       >
         <i class="fas fa-exclamation-triangle mr-2" />{{ authStore.loginError }}
@@ -100,6 +117,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
+import TwoFactorVerify from '@/components/auth/TwoFactorVerify.vue'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -110,6 +128,10 @@ const loginForm = ref({
   password: ''
 })
 
+const twoFactorVerifyRef = ref(null)
+const twoFactorError = ref('')
+const remainingAttempts = ref(null)
+
 onMounted(() => {
   // 初始化主题
   themeStore.initTheme()
@@ -119,5 +141,30 @@ onMounted(() => {
 
 const handleLogin = async () => {
   await authStore.login(loginForm.value)
+}
+
+const handleVerify2FA = async (code) => {
+  twoFactorError.value = ''
+  remainingAttempts.value = null
+
+  const result = await authStore.verify2FA(code)
+
+  if (!result.success) {
+    twoFactorError.value = result.message || '验证码错误'
+    if (result.remainingAttempts !== undefined) {
+      remainingAttempts.value = result.remainingAttempts
+    }
+    // 清空输入
+    if (twoFactorVerifyRef.value) {
+      twoFactorVerifyRef.value.clear()
+    }
+  }
+}
+
+const handleCancel2FA = () => {
+  authStore.cancel2FA()
+  twoFactorError.value = ''
+  remainingAttempts.value = null
+  loginForm.value.password = ''
 }
 </script>
