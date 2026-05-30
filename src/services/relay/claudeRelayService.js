@@ -28,6 +28,10 @@ const {
 const safeClone =
   typeof structuredClone === 'function' ? structuredClone : (obj) => JSON.parse(JSON.stringify(obj))
 
+// Claude validates returned thinking blocks as opaque data, so request cleanup must not edit them.
+const isThinkingContentBlock = (block) =>
+  block && (block.type === 'thinking' || block.type === 'redacted_thinking')
+
 class ClaudeRelayService {
   constructor() {
     this.claudeApiUrl = 'https://api.anthropic.com/v1/messages?beta=true'
@@ -1381,6 +1385,9 @@ class ClaudeRelayService {
       }
 
       contentArray.forEach((item) => {
+        if (isThinkingContentBlock(item)) {
+          return
+        }
         if (item && typeof item === 'object' && item.cache_control) {
           if (item.cache_control.ttl) {
             delete item.cache_control.ttl
@@ -1452,6 +1459,9 @@ class ClaudeRelayService {
 
         for (let contentIndex = 0; contentIndex < message.content.length; contentIndex += 1) {
           const contentItem = message.content[contentIndex]
+          if (isThinkingContentBlock(contentItem)) {
+            continue
+          }
           if (contentItem && contentItem.cache_control) {
             // 只删除 cache_control 属性，保留内容
             delete contentItem.cache_control
