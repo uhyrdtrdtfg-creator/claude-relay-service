@@ -84,6 +84,16 @@ describe('claudeRelayService thinking block preservation', () => {
     claudeRelayService.systemPrompt = ''
   })
 
+  it('adds context-management beta when forwarding context_management edits', () => {
+    const betaHeader = claudeRelayService._getBetaHeader('claude-opus-4-8', '', {
+      context_management: {
+        edits: [{ type: 'clear_thinking_20251015', keep: 'all' }]
+      }
+    })
+
+    expect(betaHeader.split(',')).toContain('context-management-2025-06-27')
+  })
+
   it('keeps thinking and redacted_thinking blocks opaque during request cleanup', () => {
     const thinkingBlock = {
       type: 'thinking',

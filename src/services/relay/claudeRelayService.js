@@ -48,11 +48,12 @@ class ClaudeRelayService {
   }
 
   // 🔧 根据模型ID和客户端传递的 anthropic-beta 获取最终的 header
-  _getBetaHeader(modelId, clientBetaHeader) {
+  _getBetaHeader(modelId, clientBetaHeader, requestBody = null) {
     const OAUTH_BETA = 'oauth-2025-04-20'
     const CLAUDE_CODE_BETA = 'claude-code-20250219'
     const INTERLEAVED_THINKING_BETA = 'interleaved-thinking-2025-05-14'
     const TOOL_STREAMING_BETA = 'fine-grained-tool-streaming-2025-05-14'
+    const CONTEXT_MANAGEMENT_BETA = 'context-management-2025-06-27'
 
     const isHaikuModel = modelId && modelId.toLowerCase().includes('haiku')
     const baseBetas = isHaikuModel
@@ -70,6 +71,10 @@ class ClaudeRelayService {
     }
 
     baseBetas.forEach(addBeta)
+
+    if (requestBody?.context_management) {
+      addBeta(CONTEXT_MANAGEMENT_BETA)
+    }
 
     if (clientBetaHeader) {
       clientBetaHeader
@@ -1634,7 +1639,7 @@ class ClaudeRelayService {
     // 根据模型和客户端传递的 anthropic-beta 动态设置 header
     const modelId = requestPayload?.model || body?.model
     const clientBetaHeader = this._getHeaderValueCaseInsensitive(clientHeaders, 'anthropic-beta')
-    headers['anthropic-beta'] = this._getBetaHeader(modelId, clientBetaHeader)
+    headers['anthropic-beta'] = this._getBetaHeader(modelId, clientBetaHeader, requestPayload)
     return {
       requestPayload,
       bodyString,
