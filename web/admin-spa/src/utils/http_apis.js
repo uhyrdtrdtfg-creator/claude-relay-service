@@ -3,6 +3,13 @@ import request from '@/utils/request'
 // 模型
 export const getModelsApi = () => request({ url: '/apiStats/models', method: 'GET' })
 
+// 模型价格管理
+export const getModelPricingApi = () => request({ url: '/admin/models/pricing', method: 'GET' })
+export const getModelPricingStatusApi = () =>
+  request({ url: '/admin/models/pricing/status', method: 'GET' })
+export const refreshModelPricingApi = () =>
+  request({ url: '/admin/models/pricing/refresh', method: 'POST' })
+
 // API Stats
 export const getKeyIdApi = (apiKey) =>
   request({ url: '/apiStats/api/get-key-id', method: 'POST', data: { apiKey } })
@@ -46,9 +53,19 @@ export const getRedemptionHistoryByApiIdApi = (apiId, params = {}) =>
 
 // 仪表板
 export const getDashboardApi = () => request({ url: '/admin/dashboard', method: 'GET' })
+export const getTempUnavailableApi = () =>
+  request({ url: '/admin/temp-unavailable', method: 'GET' })
 export const getUsageCostsApi = (period) =>
   request({ url: `/admin/usage-costs?period=${period}`, method: 'GET' })
 export const getUsageStatsApi = (url) => request({ url, method: 'GET' })
+export const getRequestDetailsApi = (params) =>
+  request({ url: '/admin/request-details', method: 'GET', params })
+export const getRequestDetailBodyPreviewStatsApi = (config) =>
+  request({ url: '/admin/request-details/body-preview-stats', method: 'GET', ...config })
+export const purgeRequestDetailBodyPreviewApi = (config) =>
+  request({ url: '/admin/request-details/body-preview-purge', method: 'POST', ...config })
+export const getRequestDetailApi = (requestId) =>
+  request({ url: `/admin/request-details/${requestId}`, method: 'GET' })
 
 // 客户端
 export const getSupportedClientsApi = () =>
@@ -266,6 +283,12 @@ export const updateQuotaCardLimitsApi = (data) =>
 // 账户余额
 export const getAccountBalanceApi = (id, params) =>
   request({ url: `/admin/accounts/${id}/balance`, method: 'GET', params })
+
+// 账户错误历史
+export const getAccountErrorHistoryApi = (accountType, accountId, params) =>
+  request({ url: `/admin/accounts/${accountType}/${accountId}/error-history`, params })
+export const clearAccountErrorHistoryApi = (accountType, accountId) =>
+  request({ url: `/admin/accounts/${accountType}/${accountId}/error-history`, method: 'DELETE' })
 export const refreshAccountBalanceApi = (id, data) =>
   request({ url: `/admin/accounts/${id}/balance/refresh`, method: 'POST', data })
 export const getBalanceSummaryApi = () =>

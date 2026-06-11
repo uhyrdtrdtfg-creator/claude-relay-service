@@ -1489,6 +1489,13 @@
                   <!-- 快捷添加按钮 -->
                   <div class="mt-3 flex flex-wrap gap-2">
                     <button
+                      class="rounded-lg bg-violet-100 px-3 py-1 text-xs text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50"
+                      type="button"
+                      @click="addPresetMapping('claude-opus-4-6', 'claude-opus-4-6')"
+                    >
+                      + Opus 4.6
+                    </button>
+                    <button
                       class="rounded-lg bg-blue-100 px-3 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
                       type="button"
                       @click="
@@ -1607,7 +1614,7 @@
               </div>
 
               <!-- 上游错误处理 -->
-              <div v-if="form.platform === 'claude-console'">
+              <div v-if="autoProtectionPlatforms.includes(form.platform)">
                 <label class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300"
                   >上游错误处理</label
                 >
@@ -1625,6 +1632,13 @@
                   勾选后遇到 401/400/429/529 等上游错误仅记录日志并透传，不自动禁用或限流
                 </p>
               </div>
+
+              <TempUnavailablePolicyFields
+                v-if="form.platform === 'claude'"
+                v-model:disable-temp-unavailable="form.disableTempUnavailable"
+                v-model:temp-unavailable-503-ttl-seconds="form.tempUnavailable503TtlSeconds"
+                v-model:temp-unavailable-5xx-ttl-seconds="form.tempUnavailable5xxTtlSeconds"
+              />
             </div>
 
             <!-- OpenAI-Responses 特定字段 -->
@@ -1685,6 +1699,23 @@
                 </p>
               </div>
 
+              <div>
+                <label class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  >Provider 端点类型</label
+                >
+                <select
+                  v-model="form.providerEndpoint"
+                  class="form-input w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                >
+                  <option value="responses">Responses（推荐）</option>
+                  <option value="auto">自动（保持原始路径）</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  指定 Provider 支持的端点类型。Responses 会将所有请求路由到（包括来自
+                  /v1/chat/completions 的请求会自动转换）；自动则保持客户端请求的原始路径
+                </p>
+              </div>
+
               <!-- 限流时长字段 - 隐藏不显示，使用默认值60 -->
               <input v-model.number="form.rateLimitDuration" type="hidden" value="60" />
             </div>
@@ -1707,24 +1738,26 @@
                   {{ errors.baseUrl }}
                 </p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  填写 API 基础地址，必须以
-                  <code class="rounded bg-gray-100 px-1 dark:bg-gray-600">/models</code>
-                  结尾。系统会自动拼接
+                  支持三种格式，系统自动识别：
+                </p>
+                <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                  以 /models 结尾:
                   <code class="rounded bg-gray-100 px-1 dark:bg-gray-600"
-                    >/{model}:generateContent</code
+                    >https://proxy.com/v1beta/models</code
                   >
                 </p>
                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                  官方:
+                  模板模式:
                   <code class="rounded bg-gray-100 px-1 dark:bg-gray-600"
-                    >https://generativelanguage.googleapis.com/v1beta/models</code
+                    >https://proxy.com/api/{model}:{action}</code
                   >
                 </p>
                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                  上游为 CRS:
+                  域名:
                   <code class="rounded bg-gray-100 px-1 dark:bg-gray-600"
-                    >https://your-crs.com/gemini/v1beta/models</code
+                    >https://generativelanguage.googleapis.com</code
                   >
+                  (自动拼接 /v1beta/models)
                 </p>
               </div>
 
@@ -3246,6 +3279,13 @@
                     + Sonnet 4.5
                   </button>
                   <button
+                    class="rounded-lg bg-violet-100 px-3 py-1 text-xs text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50"
+                    type="button"
+                    @click="addPresetMapping('claude-opus-4-6', 'claude-opus-4-6')"
+                  >
+                    + Opus 4.6
+                  </button>
+                  <button
                     class="rounded-lg bg-purple-100 px-3 py-1 text-xs text-purple-700 transition-colors hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50"
                     type="button"
                     @click="
@@ -3357,27 +3397,32 @@
                 <p class="mt-1 text-xs text-gray-500">账号被限流后暂停调度的时间（分钟）</p>
               </div>
             </div>
-
-            <!-- 上游错误处理（编辑模式）-->
-            <div v-if="form.platform === 'claude-console'">
-              <label class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                上游错误处理
-              </label>
-              <label class="inline-flex cursor-pointer items-center">
-                <input
-                  v-model="form.disableAutoProtection"
-                  class="mr-2 rounded border-gray-300 text-blue-600 focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-gray-600 dark:bg-gray-700"
-                  type="checkbox"
-                />
-                <span class="text-sm text-gray-700 dark:text-gray-300">
-                  上游错误不自动暂停调度
-                </span>
-              </label>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                勾选后遇到 401/400/429/529 等上游错误仅记录日志并透传，不自动禁用或限流
-              </p>
-            </div>
           </div>
+
+          <!-- 上游错误处理（编辑模式）-->
+          <div v-if="autoProtectionPlatforms.includes(form.platform)">
+            <label class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              上游错误处理
+            </label>
+            <label class="inline-flex cursor-pointer items-center">
+              <input
+                v-model="form.disableAutoProtection"
+                class="mr-2 rounded border-gray-300 text-blue-600 focus:border-blue-500 focus:ring focus:ring-blue-200 dark:border-gray-600 dark:bg-gray-700"
+                type="checkbox"
+              />
+              <span class="text-sm text-gray-700 dark:text-gray-300"> 上游错误不自动暂停调度 </span>
+            </label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              勾选后遇到 401/400/429/529 等上游错误仅记录日志并透传，不自动禁用或限流
+            </p>
+          </div>
+
+          <TempUnavailablePolicyFields
+            v-if="form.platform === 'claude'"
+            v-model:disable-temp-unavailable="form.disableTempUnavailable"
+            v-model:temp-unavailable-503-ttl-seconds="form.tempUnavailable503TtlSeconds"
+            v-model:temp-unavailable-5xx-ttl-seconds="form.tempUnavailable5xxTtlSeconds"
+          />
 
           <!-- OpenAI-Responses 特定字段（编辑模式）-->
           <div v-if="form.platform === 'openai-responses'" class="space-y-4">
@@ -3423,6 +3468,24 @@
               />
               <p class="mt-1 text-xs text-gray-500">
                 留空时将自动使用客户端的 User-Agent，仅在需要固定特定 UA 时填写
+              </p>
+            </div>
+
+            <div>
+              <label class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300"
+                >Provider 端点类型</label
+              >
+              <select
+                v-model="form.providerEndpoint"
+                class="form-input w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+              >
+                <option value="responses">Responses（推荐）</option>
+                <option value="completions">Chat Completions</option>
+                <option value="auto">自动（保持原始路径）</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                指定 Provider 支持的端点类型。Responses 会将所有请求路由到（包括来自
+                /v1/chat/completions 的请求会自动转换）；自动则保持原始路径
               </p>
             </div>
 
@@ -3491,24 +3554,26 @@
                 {{ errors.baseUrl }}
               </p>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                填写 API 基础地址，必须以
-                <code class="rounded bg-gray-100 px-1 dark:bg-gray-600">/models</code>
-                结尾。系统会自动拼接
+                支持三种格式，系统自动识别：
+              </p>
+              <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                以 /models 结尾:
                 <code class="rounded bg-gray-100 px-1 dark:bg-gray-600"
-                  >/{model}:generateContent</code
+                  >https://proxy.com/v1beta/models</code
                 >
               </p>
               <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                官方:
+                模板模式:
                 <code class="rounded bg-gray-100 px-1 dark:bg-gray-600"
-                  >https://generativelanguage.googleapis.com/v1beta/models</code
+                  >https://proxy.com/api/{model}:{action}</code
                 >
               </p>
               <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                上游为 CRS:
+                域名:
                 <code class="rounded bg-gray-100 px-1 dark:bg-gray-600"
-                  >https://your-crs.com/gemini/v1beta/models</code
+                  >https://generativelanguage.googleapis.com</code
                 >
+                (自动拼接 /v1beta/models)
               </p>
             </div>
 
@@ -3984,6 +4049,7 @@ import * as httpApis from '@/utils/http_apis'
 import { useAccountsStore } from '@/stores/accounts'
 import ProxyConfig from './ProxyConfig.vue'
 import OAuthFlow from './OAuthFlow.vue'
+import TempUnavailablePolicyFields from './TempUnavailablePolicyFields.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import GroupManagementModal from './GroupManagementModal.vue'
 import ApiKeyManagementModal from './ApiKeyManagementModal.vue'
@@ -4024,6 +4090,20 @@ const handleCancel = () => {
 // 是否为编辑模式
 const isEdit = computed(() => !!props.account)
 const show = ref(true)
+
+// 支持 disableAutoProtection 的平台白名单
+const autoProtectionPlatforms = [
+  'claude-console',
+  'ccr',
+  'droid',
+  'bedrock',
+  'azure-openai',
+  'azure_openai',
+  'gemini',
+  'gemini-api',
+  'openai',
+  'openai-responses'
+]
 
 // OAuthFlow 组件引用
 const oauthFlowRef = ref(null)
@@ -4205,6 +4285,27 @@ const initProxyConfig = () => {
   return normalizeProxyFormState(props.account?.proxy)
 }
 
+const toFormCooldownOverrideValue = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return ''
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : ''
+}
+
+const normalizeAccountCooldownOverride = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null
+  }
+  return Math.floor(parsed)
+}
+
+const toFormBoolean = (value) => value === true || value === 'true'
+
 // 表单数据
 const form = ref({
   platform: props.account?.platform || 'claude',
@@ -4242,6 +4343,7 @@ const form = ref({
   endpointType: props.account?.endpointType || 'anthropic',
   // OpenAI-Responses 特定字段
   baseApi: props.account?.baseApi || '',
+  providerEndpoint: props.account?.providerEndpoint || 'responses',
   // Gemini-API 特定字段
   baseUrl: props.account?.baseUrl || 'https://generativelanguage.googleapis.com',
   rateLimitDuration: props.account?.rateLimitDuration || 60,
@@ -4260,7 +4362,14 @@ const form = ref({
   })(),
   userAgent: props.account?.userAgent || '',
   enableRateLimit: props.account ? props.account.rateLimitDuration > 0 : true,
-  disableAutoProtection: props.account?.disableAutoProtection === true,
+  disableAutoProtection: toFormBoolean(props.account?.disableAutoProtection),
+  disableTempUnavailable: toFormBoolean(props.account?.disableTempUnavailable),
+  tempUnavailable503TtlSeconds: toFormCooldownOverrideValue(
+    props.account?.tempUnavailable503TtlSeconds
+  ),
+  tempUnavailable5xxTtlSeconds: toFormCooldownOverrideValue(
+    props.account?.tempUnavailable5xxTtlSeconds
+  ),
   // 额度管理字段
   dailyQuota: props.account?.dailyQuota || 0,
   dailyUsage: props.account?.dailyUsage || 0,
@@ -4297,6 +4406,16 @@ const form = ref({
     return ''
   })(),
   expiresAt: props.account?.expiresAt || null
+})
+
+const buildClaudeTempUnavailablePolicyPayload = () => ({
+  disableTempUnavailable: !!form.value.disableTempUnavailable,
+  tempUnavailable503TtlSeconds: normalizeAccountCooldownOverride(
+    form.value.tempUnavailable503TtlSeconds
+  ),
+  tempUnavailable5xxTtlSeconds: normalizeAccountCooldownOverride(
+    form.value.tempUnavailable5xxTtlSeconds
+  )
 })
 
 // 模型限制配置
@@ -4963,6 +5082,7 @@ const handleOAuthSuccess = async (tokenInfoOrList) => {
       data.useUnifiedClientId = form.value.useUnifiedClientId || false
       data.unifiedClientId = form.value.unifiedClientId || ''
       data.maxConcurrency = form.value.serialQueueEnabled ? 1 : 0
+      Object.assign(data, buildClaudeTempUnavailablePolicyPayload())
       // 添加订阅类型信息
       data.subscriptionInfo = {
         accountType: form.value.subscriptionType || 'claude_max',
@@ -5228,12 +5348,8 @@ const createAccount = async () => {
         errors.value.apiKey = '请填写 API Key'
         hasError = true
       }
-      // 验证 baseUrl 必须以 /models 结尾
       if (!form.value.baseUrl || form.value.baseUrl.trim() === '') {
         errors.value.baseUrl = '请填写 API 基础地址'
-        hasError = true
-      } else if (!form.value.baseUrl.trim().endsWith('/models')) {
-        errors.value.baseUrl = 'API 基础地址必须以 /models 结尾'
         hasError = true
       }
     } else {
@@ -5393,9 +5509,7 @@ const createAccount = async () => {
       data.userAgent = form.value.userAgent || null
       // 如果不启用限流，传递 0 表示不限流
       data.rateLimitDuration = form.value.enableRateLimit ? form.value.rateLimitDuration || 60 : 0
-      // 上游错误处理（仅 Claude Console）
       if (form.value.platform === 'claude-console') {
-        data.disableAutoProtection = !!form.value.disableAutoProtection
         data.interceptWarmup = !!form.value.interceptWarmup
       }
       // 额度管理字段
@@ -5408,6 +5522,7 @@ const createAccount = async () => {
       data.baseApi = form.value.baseApi
       data.apiKey = form.value.apiKey
       data.userAgent = form.value.userAgent || ''
+      data.providerEndpoint = form.value.providerEndpoint || 'responses'
       data.priority = form.value.priority || 50
       data.rateLimitDuration = 60 // 默认值60，不从用户输入获取
       data.dailyQuota = form.value.dailyQuota || 0
@@ -5458,6 +5573,11 @@ const createAccount = async () => {
       data.priority = form.value.priority || 50
       data.isActive = form.value.isActive !== false
       data.schedulable = form.value.schedulable !== false
+    }
+
+    // 支持 disableAutoProtection 的平台才写入
+    if (autoProtectionPlatforms.includes(form.value.platform)) {
+      data.disableAutoProtection = !!form.value.disableAutoProtection
     }
 
     let result
@@ -5526,15 +5646,11 @@ const updateAccount = async () => {
     return
   }
 
-  // Gemini API 的 baseUrl 验证（必须以 /models 结尾）
+  // Gemini API 的 baseUrl 验证
   if (form.value.platform === 'gemini-api') {
     const baseUrl = form.value.baseUrl?.trim() || ''
     if (!baseUrl) {
       errors.value.baseUrl = '请填写 API 基础地址'
-      return
-    }
-    if (!baseUrl.endsWith('/models')) {
-      errors.value.baseUrl = 'API 基础地址必须以 /models 结尾'
       return
     }
   }
@@ -5711,6 +5827,7 @@ const updateAccount = async () => {
       data.useUnifiedClientId = form.value.useUnifiedClientId || false
       data.unifiedClientId = form.value.unifiedClientId || ''
       data.maxConcurrency = form.value.serialQueueEnabled ? 1 : 0
+      Object.assign(data, buildClaudeTempUnavailablePolicyPayload())
       // 更新订阅类型信息
       data.subscriptionInfo = {
         accountType: form.value.subscriptionType || 'claude_max',
@@ -5741,8 +5858,6 @@ const updateAccount = async () => {
       data.userAgent = form.value.userAgent || null
       // 如果不启用限流，传递 0 表示不限流
       data.rateLimitDuration = form.value.enableRateLimit ? form.value.rateLimitDuration || 60 : 0
-      // 上游错误处理
-      data.disableAutoProtection = !!form.value.disableAutoProtection
       // 拦截预热请求
       data.interceptWarmup = !!form.value.interceptWarmup
       // 额度管理字段
@@ -5759,6 +5874,7 @@ const updateAccount = async () => {
         data.apiKey = form.value.apiKey
       }
       data.userAgent = form.value.userAgent || ''
+      data.providerEndpoint = form.value.providerEndpoint || 'responses'
       data.priority = form.value.priority || 50
       // 编辑时不上传 rateLimitDuration，保持原值
       data.dailyQuota = form.value.dailyQuota || 0
@@ -5831,6 +5947,11 @@ const updateAccount = async () => {
       data.supportedModels = Array.isArray(form.value.supportedModels)
         ? form.value.supportedModels
         : []
+    }
+
+    // 支持 disableAutoProtection 的平台才写入
+    if (autoProtectionPlatforms.includes(props.account.platform)) {
+      data.disableAutoProtection = !!form.value.disableAutoProtection
     }
 
     if (props.account.platform === 'claude') {
@@ -6376,6 +6497,7 @@ watch(
         deploymentName: newAccount.deploymentName || '',
         // OpenAI-Responses 特定字段
         baseApi: newAccount.baseApi || '',
+        providerEndpoint: newAccount.providerEndpoint || 'responses',
         // Gemini-API 特定字段
         baseUrl: newAccount.baseUrl || 'https://generativelanguage.googleapis.com',
         // 额度管理字段
@@ -6385,7 +6507,14 @@ watch(
         // 并发控制字段
         maxConcurrentTasks: newAccount.maxConcurrentTasks || 0,
         // 上游错误处理
-        disableAutoProtection: newAccount.disableAutoProtection === true
+        disableAutoProtection: toFormBoolean(newAccount.disableAutoProtection),
+        disableTempUnavailable: toFormBoolean(newAccount.disableTempUnavailable),
+        tempUnavailable503TtlSeconds: toFormCooldownOverrideValue(
+          newAccount.tempUnavailable503TtlSeconds
+        ),
+        tempUnavailable5xxTtlSeconds: toFormCooldownOverrideValue(
+          newAccount.tempUnavailable5xxTtlSeconds
+        )
       }
 
       // 如果是Claude Console账户，加载实时使用情况
